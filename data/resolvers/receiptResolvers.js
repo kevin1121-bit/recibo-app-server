@@ -3,8 +3,9 @@ const { v4: uuidv4 } = require("uuid");
 
 const resolvers = {
   Query: {
-    getReceipt: async (_, __) => {
+    getReceipt: async (_, __, { personNow }) => {
       try {
+        if (!personNow) return null;
         const findReceipt = await Receipt.find()
           .populate("person")
           .populate("personModified")
@@ -20,108 +21,120 @@ const resolvers = {
     },
   },
   Mutation: {
-    createReceipt: async (_, { input }) => {
+    createReceipt: async (_, { input }, { personNow }) => {
       try {
-        let results = {
-          message: "",
-          status: false,
-          error: "",
-        };
-
-        const findPerson = await Person.findOne(
-          { username: input.username },
-          { _id: 1 }
-        ).exec();
-        let consecutiveNum;
-
-        const findReceiptConsecutive = await Receipt.find().exec();
-        if (findReceiptConsecutive.length !== 0) {
-          consecutiveNum =
-            findReceiptConsecutive[findReceiptConsecutive.length - 1]
-              .consecutive + 1;
+        if (!personNow) {
+          return null;
         } else {
-          consecutiveNum = 0;
-        }
+          let results = {
+            message: "",
+            status: false,
+            error: "",
+          };
 
-        if (findPerson && findReceiptConsecutive) {
-          const createSchema = new Receipt({
-            idPublic: uuidv4(),
-            consecutive: consecutiveNum,
-            title: input.title,
-            peso: input.peso,
-            price: input.price,
-            unitPrice: input.unitPrice,
-            person: findPerson.id,
-            address: input.address,
-          });
+          const findPerson = await Person.findOne(
+            { username: input.username },
+            { _id: 1 }
+          ).exec();
+          let consecutiveNum;
 
-          const saveSchema = createSchema.save();
-          if (saveSchema) {
-            results.message = "successfully";
-            results.status = true;
+          const findReceiptConsecutive = await Receipt.find().exec();
+          if (findReceiptConsecutive.length !== 0) {
+            consecutiveNum =
+              findReceiptConsecutive[findReceiptConsecutive.length - 1]
+                .consecutive + 1;
           } else {
-            throw Error("Imposible update");
+            consecutiveNum = 0;
           }
-        } else {
-          throw Error("Person not found");
+
+          if (findPerson && findReceiptConsecutive) {
+            const createSchema = new Receipt({
+              idPublic: uuidv4(),
+              consecutive: consecutiveNum,
+              title: input.title,
+              peso: input.peso,
+              price: input.price,
+              unitPrice: input.unitPrice,
+              person: findPerson.id,
+              address: input.address,
+            });
+
+            const saveSchema = createSchema.save();
+            if (saveSchema) {
+              results.message = "successfully";
+              results.status = true;
+            } else {
+              throw new Error("Imposible update");
+            }
+          } else {
+            throw new Error("Person not found");
+          }
+          return results;
         }
-        return results;
       } catch (err) {
         return err;
       }
     },
-    modifiedReceipt: async (_, { input }) => {
+    modifiedReceipt: async (_, { input }, { personNow }) => {
       try {
-        let results = { message: "", status: false, error: "" };
-        const findPerson = await Person.findOne(
-          { username: input.username },
-          { _id: 1 }
-        ).exec();
-
-        if (findPerson) {
-          const updateReceipt = await Receipt.updateOne(
-            { idPublic: input.idPublic },
-            {
-              $set: {
-                title: input.title,
-                peso: input.peso,
-                price: input.price,
-                unitPrice: input.unitPrice,
-                address: input.address,
-                isModifiedReceipt: true,
-                personModified: findPerson.id,
-                dateModified: Date.now(),
-              },
-            }
+        if (!personNow) {
+          return null;
+        } else {
+          let results = { message: "", status: false, error: "" };
+          const findPerson = await Person.findOne(
+            { username: input.username },
+            { _id: 1 }
           ).exec();
 
-          if (updateReceipt) {
-            results.message = "successfully";
-            results.status = true;
+          if (findPerson) {
+            const updateReceipt = await Receipt.updateOne(
+              { idPublic: input.idPublic },
+              {
+                $set: {
+                  title: input.title,
+                  peso: input.peso,
+                  price: input.price,
+                  unitPrice: input.unitPrice,
+                  address: input.address,
+                  isModifiedReceipt: true,
+                  personModified: findPerson.id,
+                  dateModified: Date.now(),
+                },
+              }
+            ).exec();
+
+            if (updateReceipt) {
+              results.message = "successfully";
+              results.status = true;
+            } else {
+              throw new Error("Imposible update");
+            }
           } else {
-            throw Error("Imposible update");
+            throw new Error("Person not found");
           }
-        } else {
-          throw Error("Person not found");
+          return results;
         }
-        return results;
       } catch (err) {
         return err;
       }
     },
-    removeReceipt: async (_, { input }) => {
+    removeReceipt: async (_, { input }, { personNow }) => {
       try {
-        let results = { message: "", status: false };
-        const receiptRemove = await Receipt.deleteMany({
-          idPublic: input.idPublic,
-        }).exec();
-        if (receiptRemove) {
-          results.message = "Successfully";
-          results.status = true;
+        if (!personNow) {
+          return null;
         } else {
-          throw Error("Remove imposible");
+          let results = { message: "", status: false };
+          const receiptRemove = await Receipt.deleteMany({
+            idPublic: input.idPublic,
+          }).exec();
+          if (receiptRemove) {
+            results.message = "Successfully";
+            results.status = true;
+          } else {
+            throw new Error("Remove imposible");
+          }
+          return results;
         }
-        return results;
       } catch (err) {
         return err;
       }
